@@ -1,5 +1,4 @@
-// Curated list of top models from Vercel AI Gateway
-export const DEFAULT_CHAT_MODEL = "google/gemini-2.5-flash-lite";
+export const DEFAULT_CHAT_MODEL = "openai/gpt-4.1-mini";
 
 export type ChatModel = {
   id: string;
@@ -9,6 +8,25 @@ export type ChatModel = {
 };
 
 export const chatModels: ChatModel[] = [
+  // OpenAI
+  {
+    id: "openai/gpt-4.1-mini",
+    name: "GPT-4.1 Mini",
+    provider: "openai",
+    description: "Fast and cost-effective for simple tasks",
+  },
+  {
+    id: "openai/gpt-4.1",
+    name: "GPT-4.1",
+    provider: "openai",
+    description: "Flagship OpenAI model, great all-rounder",
+  },
+  {
+    id: "openai/gpt-4o",
+    name: "GPT-4o",
+    provider: "openai",
+    description: "Fast multimodal model with vision support",
+  },
   // Anthropic
   {
     id: "anthropic/claude-haiku-4.5",
@@ -28,38 +46,37 @@ export const chatModels: ChatModel[] = [
     provider: "anthropic",
     description: "Most capable Anthropic model",
   },
-  // OpenAI
-  {
-    id: "openai/gpt-4.1-mini",
-    name: "GPT-4.1 Mini",
-    provider: "openai",
-    description: "Fast and cost-effective for simple tasks",
-  },
-  {
-    id: "openai/gpt-5.2",
-    name: "GPT-5.2",
-    provider: "openai",
-    description: "Most capable OpenAI model",
-  },
   // Google
   {
-    id: "google/gemini-2.5-flash-lite",
-    name: "Gemini 2.5 Flash Lite",
+    id: "google/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
     provider: "google",
     description: "Ultra fast and affordable",
   },
   {
-    id: "google/gemini-3-pro-preview",
-    name: "Gemini 3 Pro",
+    id: "google/gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
     provider: "google",
     description: "Most capable Google model",
   },
-  // xAI
+  // OpenRouter (open-source / third-party models)
   {
-    id: "xai/grok-4.1-fast-non-reasoning",
-    name: "Grok 4.1 Fast",
-    provider: "xai",
-    description: "Fast with 30K context",
+    id: "openrouter/deepseek/deepseek-r1",
+    name: "DeepSeek R1",
+    provider: "openrouter",
+    description: "Strong reasoning model, open-source",
+  },
+  {
+    id: "openrouter/meta-llama/llama-4-maverick",
+    name: "Llama 4 Maverick",
+    provider: "openrouter",
+    description: "Meta's most capable open model",
+  },
+  {
+    id: "openrouter/mistralai/mistral-large-2411",
+    name: "Mistral Large",
+    provider: "openrouter",
+    description: "Mistral's flagship model",
   },
   // Reasoning models (extended thinking)
   {
@@ -69,14 +86,13 @@ export const chatModels: ChatModel[] = [
     description: "Extended thinking for complex problems",
   },
   {
-    id: "xai/grok-code-fast-1-thinking",
-    name: "Grok Code Fast",
+    id: "openai/o4-mini",
+    name: "o4-mini",
     provider: "reasoning",
-    description: "Reasoning optimized for code",
+    description: "OpenAI reasoning model, fast and efficient",
   },
 ];
 
-// Group models by provider for UI
 export const modelsByProvider = chatModels.reduce(
   (acc, model) => {
     if (!acc[model.provider]) {
@@ -85,5 +101,5 @@ export const modelsByProvider = chatModels.reduce(
     acc[model.provider].push(model);
     return acc;
   },
-  {} as Record<string, ChatModel[]>
+  {} as Record<string, ChatModel[]>,
 );

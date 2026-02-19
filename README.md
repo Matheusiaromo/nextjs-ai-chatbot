@@ -24,7 +24,7 @@
 - [AI SDK](https://ai-sdk.dev/docs/introduction)
   - Unified API for generating text, structured objects, and tool calls with LLMs
   - Hooks for building dynamic chat and generative user interfaces
-  - Supports xAI (default), OpenAI, Fireworks, and other model providers
+  - Supports OpenAI, Anthropic, Google, and OpenRouter model providers
 - [shadcn/ui](https://ui.shadcn.com)
   - Styling with [Tailwind CSS](https://tailwindcss.com)
   - Component primitives from [Radix UI](https://radix-ui.com) for accessibility and flexibility
@@ -36,15 +36,16 @@
 
 ## Model Providers
 
-This template uses the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) to access multiple AI models through a unified interface. The default configuration includes [xAI](https://x.ai) models (`grok-2-vision-1212`, `grok-3-mini`) routed through the gateway.
+This template connects directly to multiple AI providers via the [AI SDK](https://ai-sdk.dev/docs/introduction). Each provider requires its own API key set in `.env.local`:
 
-### AI Gateway Authentication
+| Provider | Package | Env Variable | Get API Key |
+|----------|---------|--------------|-------------|
+| [OpenAI](https://openai.com) | `@ai-sdk/openai` | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com/api-keys) |
+| [Anthropic](https://anthropic.com) | `@ai-sdk/anthropic` | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| [Google](https://ai.google.dev) | `@ai-sdk/google` | `GOOGLE_GENERATIVE_AI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
+| [OpenRouter](https://openrouter.ai) | `@openrouter/ai-sdk-provider` | `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys) |
 
-**For Vercel deployments**: Authentication is handled automatically via OIDC tokens.
-
-**For non-Vercel deployments**: You need to provide an AI Gateway API key by setting the `AI_GATEWAY_API_KEY` environment variable in your `.env.local` file.
-
-With the [AI SDK](https://ai-sdk.dev/docs/introduction), you can also switch to direct LLM providers like [OpenAI](https://openai.com), [Anthropic](https://anthropic.com), [Cohere](https://cohere.com/), and [many more](https://ai-sdk.dev/providers/ai-sdk-providers) with just a few lines of code.
+You only need to configure the providers you want to use. Models from providers without a configured API key will fail at runtime.
 
 ## Deploy Your Own
 

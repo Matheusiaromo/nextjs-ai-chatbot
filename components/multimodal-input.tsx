@@ -478,10 +478,10 @@ function PureModelSelectorCompact({
 
   // Provider display names
   const providerNames: Record<string, string> = {
-    anthropic: "Anthropic",
     openai: "OpenAI",
+    anthropic: "Anthropic",
     google: "Google",
-    xai: "xAI",
+    openrouter: "OpenRouter",
     reasoning: "Reasoning",
   };
 

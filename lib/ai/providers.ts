@@ -1,10 +1,40 @@
-import { gateway } from "@ai-sdk/gateway";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   customProvider,
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from "ai";
 import { isTestEnvironment } from "../constants";
+
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+});
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+function resolveModel(modelId: string) {
+  const [prefix, ...rest] = modelId.split("/");
+  const modelName = rest.join("/");
+
+  switch (prefix) {
+    case "openai":
+      return openai(modelName);
+    case "anthropic":
+      return anthropic(modelName);
+    case "google":
+      return google(modelName);
+    case "openrouter":
+      return openrouter.chat(modelName);
+    default:
+      throw new Error(`Unknown provider prefix: ${prefix}`);
+  }
+}
 
 const THINKING_SUFFIX_REGEX = /-thinking$/;
 
@@ -36,27 +66,27 @@ export function getLanguageModel(modelId: string) {
     modelId.includes("reasoning") || modelId.endsWith("-thinking");
 
   if (isReasoningModel) {
-    const gatewayModelId = modelId.replace(THINKING_SUFFIX_REGEX, "");
+    const baseModelId = modelId.replace(THINKING_SUFFIX_REGEX, "");
 
     return wrapLanguageModel({
-      model: gateway.languageModel(gatewayModelId),
+      model: resolveModel(baseModelId),
       middleware: extractReasoningMiddleware({ tagName: "thinking" }),
     });
   }
 
-  return gateway.languageModel(modelId);
+  return resolveModel(modelId);
 }
 
 export function getTitleModel() {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("title-model");
   }
-  return gateway.languageModel("google/gemini-2.5-flash-lite");
+  return openai("gpt-4.1-mini");
 }
 
 export function getArtifactModel() {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("artifact-model");
   }
-  return gateway.languageModel("anthropic/claude-haiku-4.5");
+  return openai("gpt-4.1-mini");
 }
