@@ -17,7 +17,6 @@ import postgres from "postgres";
 import type { ArtifactKind } from "@/components/artifact";
 import type { VisibilityType } from "@/components/visibility-selector";
 import { ChatSDKError } from "../errors";
-import { generateUUID } from "../utils";
 import {
   type Chat,
   chat,
@@ -59,23 +58,6 @@ export async function createUser(email: string, password: string) {
     return await db.insert(user).values({ email, password: hashedPassword });
   } catch (_error) {
     throw new ChatSDKError("bad_request:database", "Failed to create user");
-  }
-}
-
-export async function createGuestUser() {
-  const email = `guest-${Date.now()}`;
-  const password = generateHashedPassword(generateUUID());
-
-  try {
-    return await db.insert(user).values({ email, password }).returning({
-      id: user.id,
-      email: user.email,
-    });
-  } catch (_error) {
-    throw new ChatSDKError(
-      "bad_request:database",
-      "Failed to create guest user"
-    );
   }
 }
 
@@ -598,5 +580,92 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
       "bad_request:database",
       "Failed to get stream ids by chat id"
     );
+  }
+}
+
+export async function getAllUsers() {
+  try {
+    return await db
+      .select({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      })
+      .from(user)
+      .orderBy(asc(user.email));
+  } catch (_error) {
+    throw new ChatSDKError("bad_request:database", "Failed to get all users");
+  }
+}
+
+export async function createUserByAdmin({
+  email,
+  password,
+  role,
+}: {
+  email: string;
+  password: string;
+  role: string;
+}) {
+  const hashedPassword = generateHashedPassword(password);
+
+  try {
+    const [created] = await db
+      .insert(user)
+      .values({ email, password: hashedPassword, role })
+      .returning({ id: user.id, email: user.email, role: user.role });
+    return created;
+  } catch (_error) {
+    throw new ChatSDKError("bad_request:database", "Failed to create user");
+  }
+}
+
+export async function updateUserRole({
+  id,
+  role,
+}: {
+  id: string;
+  role: string;
+}) {
+  try {
+    const [updated] = await db
+      .update(user)
+      .set({ role })
+      .where(eq(user.id, id))
+      .returning({ id: user.id, email: user.email, role: user.role });
+    return updated;
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to update user role"
+    );
+  }
+}
+
+export async function deleteUserById({ id }: { id: string }) {
+  try {
+    const userChats = await db
+      .select({ id: chat.id })
+      .from(chat)
+      .where(eq(chat.userId, id));
+
+    if (userChats.length > 0) {
+      const chatIds = userChats.map((c) => c.id);
+      await db.delete(vote).where(inArray(vote.chatId, chatIds));
+      await db.delete(message).where(inArray(message.chatId, chatIds));
+      await db.delete(stream).where(inArray(stream.chatId, chatIds));
+      await db.delete(chat).where(eq(chat.userId, id));
+    }
+
+    await db.delete(suggestion).where(eq(suggestion.userId, id));
+    await db.delete(document).where(eq(document.userId, id));
+
+    const [deleted] = await db
+      .delete(user)
+      .where(eq(user.id, id))
+      .returning({ id: user.id, email: user.email });
+    return deleted;
+  } catch (_error) {
+    throw new ChatSDKError("bad_request:database", "Failed to delete user");
   }
 }
