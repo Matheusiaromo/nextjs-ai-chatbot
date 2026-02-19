@@ -12,9 +12,10 @@ import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
-import { getLanguageModel } from "@/lib/ai/providers";
+import { getLanguageModel, type UserApiKeys } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
+import { queryMongo } from "@/lib/ai/tools/query-mongo";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { isProductionEnvironment } from "@/lib/constants";
@@ -24,6 +25,7 @@ import {
   getChatById,
   getMessageCountByUserId,
   getMessagesByChatId,
+  getUserApiKeys,
   saveChat,
   saveMessages,
   updateChatTitleById,
@@ -79,6 +81,17 @@ export async function POST(request: Request) {
       return new ChatSDKError("rate_limit:chat").toResponse();
     }
 
+    const userApiKeys: UserApiKeys = await getUserApiKeys({
+      userId: session.user.id,
+    });
+
+    if (!userApiKeys.anthropic) {
+      return new ChatSDKError(
+        "bad_request:api",
+        "Chave Anthropic não configurada. Configure sua API key.",
+      ).toResponse();
+    }
+
     const isToolApprovalFlow = Boolean(messages);
 
     const chat = await getChatById({ id });
@@ -99,7 +112,7 @@ export async function POST(request: Request) {
         title: "New chat",
         visibility: selectedVisibilityType,
       });
-      titlePromise = generateTitleFromUserMessage({ message });
+      titlePromise = generateTitleFromUserMessage({ message, userApiKeys });
     }
 
     const uiMessages = isToolApprovalFlow
@@ -130,40 +143,29 @@ export async function POST(request: Request) {
       });
     }
 
-    const isReasoningModel =
-      selectedChatModel.includes("reasoning") ||
-      selectedChatModel.includes("thinking");
-
     const modelMessages = await convertToModelMessages(uiMessages);
 
     const stream = createUIMessageStream({
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
       execute: async ({ writer: dataStream }) => {
         const result = streamText({
-          model: getLanguageModel(selectedChatModel),
+          model: getLanguageModel(selectedChatModel, userApiKeys),
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages: modelMessages,
           stopWhen: stepCountIs(5),
-          experimental_activeTools: isReasoningModel
-            ? []
-            : [
-                "getWeather",
-                "createDocument",
-                "updateDocument",
-                "requestSuggestions",
-              ],
-          providerOptions: isReasoningModel
-            ? {
-                anthropic: {
-                  thinking: { type: "enabled", budgetTokens: 10_000 },
-                },
-              }
-            : undefined,
+          experimental_activeTools: [
+            "getWeather",
+            "queryMongo",
+            "createDocument",
+            "updateDocument",
+            "requestSuggestions",
+          ],
           tools: {
             getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
-            requestSuggestions: requestSuggestions({ session, dataStream }),
+            queryMongo,
+            createDocument: createDocument({ session, dataStream, userApiKeys }),
+            updateDocument: updateDocument({ session, dataStream, userApiKeys }),
+            requestSuggestions: requestSuggestions({ session, dataStream, userApiKeys }),
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

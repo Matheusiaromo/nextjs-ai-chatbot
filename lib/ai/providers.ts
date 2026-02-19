@@ -1,42 +1,20 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import {
-  customProvider,
-  extractReasoningMiddleware,
-  wrapLanguageModel,
-} from "ai";
+import { customProvider } from "ai";
 import { isTestEnvironment } from "../constants";
 
-const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+export type UserApiKeys = {
+  anthropic?: string;
+};
 
-function resolveModel(modelId: string) {
-  const [prefix, ...rest] = modelId.split("/");
-  const modelName = rest.join("/");
+const TITLE_MODEL = "claude-sonnet-4-5";
+const ARTIFACT_MODEL = "claude-sonnet-4-5";
 
-  switch (prefix) {
-    case "openai":
-      return openai(modelName);
-    case "anthropic":
-      return anthropic(modelName);
-    case "google":
-      return google(modelName);
-    case "openrouter":
-      return openrouter.chat(modelName);
-    default:
-      throw new Error(`Unknown provider prefix: ${prefix}`);
+function getAnthropicProvider(keys: UserApiKeys) {
+  if (!keys.anthropic) {
+    throw new Error("Anthropic API key not configured");
   }
+  return createAnthropic({ apiKey: keys.anthropic });
 }
-
-const THINKING_SUFFIX_REGEX = /-thinking$/;
 
 export const myProvider = isTestEnvironment
   ? (() => {
@@ -57,36 +35,30 @@ export const myProvider = isTestEnvironment
     })()
   : null;
 
-export function getLanguageModel(modelId: string) {
+export function getLanguageModel(modelId: string, keys: UserApiKeys) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
   }
 
-  const isReasoningModel =
-    modelId.includes("reasoning") || modelId.endsWith("-thinking");
+  const modelName = modelId.includes("/")
+    ? modelId.split("/").slice(1).join("/")
+    : modelId;
 
-  if (isReasoningModel) {
-    const baseModelId = modelId.replace(THINKING_SUFFIX_REGEX, "");
-
-    return wrapLanguageModel({
-      model: resolveModel(baseModelId),
-      middleware: extractReasoningMiddleware({ tagName: "thinking" }),
-    });
-  }
-
-  return resolveModel(modelId);
+  return getAnthropicProvider(keys)(modelName);
 }
 
-export function getTitleModel() {
+export function getTitleModel(keys: UserApiKeys) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("title-model");
   }
-  return openai("gpt-4.1-mini");
+
+  return getAnthropicProvider(keys)(TITLE_MODEL);
 }
 
-export function getArtifactModel() {
+export function getArtifactModel(keys: UserApiKeys) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("artifact-model");
   }
-  return openai("gpt-4.1-mini");
+
+  return getAnthropicProvider(keys)(ARTIFACT_MODEL);
 }

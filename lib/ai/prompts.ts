@@ -57,7 +57,6 @@ About the origin of user's request:
 `;
 
 export const systemPrompt = ({
-  selectedChatModel,
   requestHints,
 }: {
   selectedChatModel: string;
@@ -65,16 +64,115 @@ export const systemPrompt = ({
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
 
-  // reasoning models don't need artifacts prompt (they can't use tools)
-  if (
-    selectedChatModel.includes("reasoning") ||
-    selectedChatModel.includes("thinking")
-  ) {
-    return `${regularPrompt}\n\n${requestPrompt}`;
-  }
-
-  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}\n\n${mongoPrompt}`;
 };
+
+export const mongoPrompt = `
+You have access to a MongoDB database through the \`queryMongo\` tool.
+
+**Available collections and their fields:**
+
+Collection: leads
+
+Fields:
+
+- _id (ObjectId)
+- email (string)
+- firstName (string)
+- lastName (string)
+- phone (string)
+- whatsapp (string)
+- orgId (ObjectId)
+- platformId (string)
+- source (string)
+- status (string)
+- lang (string)
+- eventId (string)
+- createdBy (string)
+- version (number)
+
+Dates:
+- createdAt (date)
+- updatedAt (date)
+- ingestedAt (date)
+- receivedAt (date)
+
+Consent:
+- consent.granted (boolean)
+- consent.timestamp (date)
+
+Geo:
+- geo.country (string)
+- geo.state (string)
+- geo.city (string)
+
+Segments:
+- segmentIds (array of string)
+
+Call Center:
+- callCenterAssignments (array)
+
+Conversions (array of objects):
+- conversions.event (string)
+- conversions.platform (string)
+- conversions.order (string)
+- conversions.product (string)
+- conversions.productId (string)
+- conversions.variant (string)
+- conversions.price (number)
+- conversions.source (string)
+- conversions.shop (string)
+- conversions.shopId (number)
+- conversions.currency (string)
+- conversions.uuid (string)
+- conversions.sent (boolean)
+- conversions.createdAt (date)
+- conversions.updatedAt (date)
+
+Conversion - Line Items:
+- conversions.lineItems.id (number)
+- conversions.lineItems.product_id (number)
+- conversions.lineItems.variant_id (number)
+- conversions.lineItems.title (string)
+- conversions.lineItems.sku (string)
+- conversions.lineItems.quantity (number)
+- conversions.lineItems.price (number)
+
+Conversion - Billing Address:
+- conversions.billingAddress.first_name (string)
+- conversions.billingAddress.last_name (string)
+- conversions.billingAddress.address1 (string)
+- conversions.billingAddress.city (string)
+- conversions.billingAddress.province (string)
+- conversions.billingAddress.country (string)
+- conversions.billingAddress.zip (string)
+- conversions.billingAddress.phone (string)
+
+Conversion - Shipping Address:
+- conversions.shippingAddress.first_name (string)
+- conversions.shippingAddress.last_name (string)
+- conversions.shippingAddress.address1 (string)
+- conversions.shippingAddress.city (string)
+- conversions.shippingAddress.province (string)
+- conversions.shippingAddress.country (string)
+- conversions.shippingAddress.zip (string)
+- conversions.shippingAddress.phone (string)
+
+**Rules:**
+- Always use the \`queryMongo\` tool when the user asks about data in the database
+- Use \`find\` for simple lookups and filtering
+- Use \`aggregate\` for grouping, counting, joining ($lookup), and computed fields
+- Keep \`limit\` reasonable (max 50, default 10) to avoid huge responses
+- The filter, projection, sort, and pipeline params must be valid JSON strings
+- For dates, use { "$gte": "2024-01-01T00:00:00Z" } format with ISODate strings
+- Always project only the fields needed to answer the question
+- Present results in a clear, readable format (tables or bullet points)
+
+**Examples:**
+- "quantos pedidos tem?" → aggregate with $count
+- "pedidos do cliente X" → find with filter { "customerId": "X" }
+- "top 5 produtos mais vendidos" → aggregate with $group, $sort, $limit
+`;
 
 export const codePrompt = `
 You are a Python code generator that creates self-contained, executable code snippets. When writing code:

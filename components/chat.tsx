@@ -3,9 +3,10 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
+import { ApiKeysDialog } from "@/components/api-keys-dialog";
 import { ChatHeader } from "@/components/chat-header";
 import {
   AlertDialog,
@@ -17,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useApiKeys } from "@/hooks/use-api-keys";
 import { useArtifactSelector } from "@/hooks/use-artifact";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
@@ -48,6 +50,14 @@ export function Chat({
   autoResume: boolean;
 }) {
   const router = useRouter();
+  const { hasAnyKey, loading: apiKeysLoading, refresh: refreshApiKeys } = useApiKeys();
+  const [showApiKeysDialog, setShowApiKeysDialog] = useState(false);
+
+  useEffect(() => {
+    if (!apiKeysLoading && !hasAnyKey) {
+      setShowApiKeysDialog(true);
+    }
+  }, [apiKeysLoading, hasAnyKey]);
 
   const { visibilityType } = useChatVisibility({
     chatId: id,
@@ -70,12 +80,6 @@ export function Chat({
 
   const [input, setInput] = useState<string>("");
   const [showCreditCardAlert, setShowCreditCardAlert] = useState(false);
-  const [currentModelId, setCurrentModelId] = useState(initialChatModel);
-  const currentModelIdRef = useRef(currentModelId);
-
-  useEffect(() => {
-    currentModelIdRef.current = currentModelId;
-  }, [currentModelId]);
 
   const {
     messages,
@@ -124,7 +128,7 @@ export function Chat({
             ...(isToolApprovalContinuation
               ? { messages: request.messages }
               : { message: lastMessage }),
-            selectedChatModel: currentModelIdRef.current,
+            selectedChatModel: initialChatModel,
             selectedVisibilityType: visibilityType,
             ...request.body,
           },
@@ -201,7 +205,6 @@ export function Chat({
           isReadonly={isReadonly}
           messages={messages}
           regenerate={regenerate}
-          selectedModelId={initialChatModel}
           setMessages={setMessages}
           status={status}
           votes={votes}
@@ -214,8 +217,6 @@ export function Chat({
               chatId={id}
               input={input}
               messages={messages}
-              onModelChange={setCurrentModelId}
-              selectedModelId={currentModelId}
               selectedVisibilityType={visibilityType}
               sendMessage={sendMessage}
               setAttachments={setAttachments}
@@ -236,7 +237,6 @@ export function Chat({
         isReadonly={isReadonly}
         messages={messages}
         regenerate={regenerate}
-        selectedModelId={currentModelId}
         selectedVisibilityType={visibilityType}
         sendMessage={sendMessage}
         setAttachments={setAttachments}
@@ -276,6 +276,13 @@ export function Chat({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ApiKeysDialog
+        dismissable={hasAnyKey}
+        onKeysChanged={refreshApiKeys}
+        onOpenChange={setShowApiKeysDialog}
+        open={showApiKeysDialog}
+      />
     </>
   );
 }

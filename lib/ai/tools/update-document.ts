@@ -4,13 +4,19 @@ import { z } from "zod";
 import { documentHandlersByArtifactKind } from "@/lib/artifacts/server";
 import { getDocumentById } from "@/lib/db/queries";
 import type { ChatMessage } from "@/lib/types";
+import type { UserApiKeys } from "../providers";
 
 type UpdateDocumentProps = {
   session: Session;
   dataStream: UIMessageStreamWriter<ChatMessage>;
+  userApiKeys: UserApiKeys;
 };
 
-export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
+export const updateDocument = ({
+  session,
+  dataStream,
+  userApiKeys,
+}: UpdateDocumentProps) =>
   tool({
     description: "Update a document with the given description.",
     inputSchema: z.object({
@@ -36,7 +42,7 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
 
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
-          documentHandlerByArtifactKind.kind === document.kind
+          documentHandlerByArtifactKind.kind === document.kind,
       );
 
       if (!documentHandler) {
@@ -48,6 +54,7 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
         description,
         dataStream,
         session,
+        userApiKeys,
       });
 
       dataStream.write({ type: "data-finish", data: null, transient: true });

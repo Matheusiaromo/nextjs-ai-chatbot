@@ -261,6 +261,190 @@ const PurePreviewMessage = ({
               );
             }
 
+            if (type === "tool-queryMongo") {
+              const { toolCallId, state } = part;
+              const approvalId = (part as { approval?: { id: string } })
+                .approval?.id;
+              const isDenied =
+                state === "output-denied" ||
+                (state === "approval-responded" &&
+                  (part as { approval?: { approved?: boolean } }).approval
+                    ?.approved === false);
+              const widthClass = "w-[min(100%,600px)]";
+              const mongoInput = part.input as {
+                collection?: string;
+                operation?: string;
+                filter?: string;
+                projection?: string;
+                sort?: string;
+                limit?: number;
+              };
+
+              const formatQuery = (input: typeof mongoInput) => {
+                if (input.operation === "aggregate") {
+                  return `db.${input.collection}.aggregate(${input.filter})`;
+                }
+                const parts = [`db.${input.collection}.find(`];
+                parts.push(input.filter || "{}");
+                if (input.projection) {
+                  parts.push(`, ${input.projection}`);
+                }
+                parts.push(")");
+                if (input.sort) {
+                  parts.push(`.sort(${input.sort})`);
+                }
+                if (input.limit) {
+                  parts.push(`.limit(${input.limit})`);
+                }
+                return parts.join("");
+              };
+
+              if (state === "output-available") {
+                const output = part.output as {
+                  collection?: string;
+                  operation?: string;
+                  count?: number;
+                  results?: unknown[];
+                  error?: string;
+                };
+
+                return (
+                  <div className={widthClass} key={toolCallId}>
+                    <Tool className="w-full" defaultOpen={true}>
+                      <ToolHeader
+                        state={state}
+                        type="tool-queryMongo"
+                      />
+                      <ToolContent>
+                        <div className="space-y-3 p-4">
+                          <div className="overflow-hidden rounded-md border border-border bg-zinc-950 dark:bg-zinc-900">
+                            <div className="flex items-center gap-2 border-b border-zinc-800 px-3 py-2">
+                              <span className="font-mono text-emerald-400 text-xs">mongo</span>
+                              <span className="text-zinc-500 text-xs">{mongoInput.collection} &middot; {mongoInput.operation}</span>
+                            </div>
+                            <pre className="overflow-x-auto p-3 font-mono text-zinc-300 text-xs leading-relaxed">
+                              {formatQuery(mongoInput)}
+                            </pre>
+                          </div>
+                          {output.error ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-600 text-sm dark:border-red-900 dark:bg-red-950/50 dark:text-red-400">
+                              {output.error}
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="mb-2 flex items-center gap-2 text-muted-foreground text-xs">
+                                <span>{output.count} documento{output.count !== 1 ? "s" : ""} retornado{output.count !== 1 ? "s" : ""}</span>
+                              </div>
+                              <pre className="max-h-80 overflow-auto rounded-md bg-muted/50 p-3 font-mono text-xs">
+                                {JSON.stringify(output.results, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </ToolContent>
+                    </Tool>
+                  </div>
+                );
+              }
+
+              if (isDenied) {
+                return (
+                  <div className={widthClass} key={toolCallId}>
+                    <Tool className="w-full" defaultOpen={true}>
+                      <ToolHeader
+                        state="output-denied"
+                        type="tool-queryMongo"
+                      />
+                      <ToolContent>
+                        <div className="px-4 py-3 text-muted-foreground text-sm">
+                          Consulta ao MongoDB negada.
+                        </div>
+                      </ToolContent>
+                    </Tool>
+                  </div>
+                );
+              }
+
+              if (state === "approval-responded") {
+                return (
+                  <div className={widthClass} key={toolCallId}>
+                    <Tool className="w-full" defaultOpen={true}>
+                      <ToolHeader state={state} type="tool-queryMongo" />
+                      <ToolContent>
+                        <div className="p-4">
+                          <div className="overflow-hidden rounded-md border border-border bg-zinc-950 dark:bg-zinc-900">
+                            <div className="flex items-center gap-2 border-b border-zinc-800 px-3 py-2">
+                              <span className="font-mono text-emerald-400 text-xs">mongo</span>
+                              <span className="text-zinc-500 text-xs">{mongoInput.collection} &middot; {mongoInput.operation}</span>
+                            </div>
+                            <pre className="overflow-x-auto p-3 font-mono text-zinc-300 text-xs leading-relaxed">
+                              {formatQuery(mongoInput)}
+                            </pre>
+                          </div>
+                        </div>
+                      </ToolContent>
+                    </Tool>
+                  </div>
+                );
+              }
+
+              return (
+                <div className={widthClass} key={toolCallId}>
+                  <Tool className="w-full" defaultOpen={true}>
+                    <ToolHeader state={state} type="tool-queryMongo" />
+                    <ToolContent>
+                      {(state === "input-available" ||
+                        state === "approval-requested") && (
+                        <div className="p-4">
+                          <div className="overflow-hidden rounded-md border border-border bg-zinc-950 dark:bg-zinc-900">
+                            <div className="flex items-center gap-2 border-b border-zinc-800 px-3 py-2">
+                              <span className="font-mono text-emerald-400 text-xs">mongo</span>
+                              <span className="text-zinc-500 text-xs">{mongoInput.collection} &middot; {mongoInput.operation}</span>
+                            </div>
+                            <pre className="overflow-x-auto p-3 font-mono text-zinc-300 text-xs leading-relaxed">
+                              {formatQuery(mongoInput)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                      {state === "approval-requested" && approvalId && (
+                        <div className="flex items-center justify-between border-t px-4 py-3">
+                          <span className="text-muted-foreground text-xs">Executar esta consulta?</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="rounded-md px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+                              onClick={() => {
+                                addToolApprovalResponse({
+                                  id: approvalId,
+                                  approved: false,
+                                  reason: "User denied MongoDB query",
+                                });
+                              }}
+                              type="button"
+                            >
+                              Negar
+                            </button>
+                            <button
+                              className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white transition-colors hover:bg-emerald-700"
+                              onClick={() => {
+                                addToolApprovalResponse({
+                                  id: approvalId,
+                                  approved: true,
+                                });
+                              }}
+                              type="button"
+                            >
+                              Executar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </ToolContent>
+                  </Tool>
+                </div>
+              );
+            }
+
             if (type === "tool-createDocument") {
               const { toolCallId } = part;
 

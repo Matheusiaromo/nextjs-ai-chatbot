@@ -7,13 +7,19 @@ import {
 } from "@/lib/artifacts/server";
 import type { ChatMessage } from "@/lib/types";
 import { generateUUID } from "@/lib/utils";
+import type { UserApiKeys } from "../providers";
 
 type CreateDocumentProps = {
   session: Session;
   dataStream: UIMessageStreamWriter<ChatMessage>;
+  userApiKeys: UserApiKeys;
 };
 
-export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
+export const createDocument = ({
+  session,
+  dataStream,
+  userApiKeys,
+}: CreateDocumentProps) =>
   tool({
     description:
       "Create a document for a writing or content creation activities. This tool will call other functions that will generate the contents of the document based on the title and kind.",
@@ -50,7 +56,7 @@ export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
 
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
-          documentHandlerByArtifactKind.kind === kind
+          documentHandlerByArtifactKind.kind === kind,
       );
 
       if (!documentHandler) {
@@ -62,6 +68,7 @@ export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
         title,
         dataStream,
         session,
+        userApiKeys,
       });
 
       dataStream.write({ type: "data-finish", data: null, transient: true });

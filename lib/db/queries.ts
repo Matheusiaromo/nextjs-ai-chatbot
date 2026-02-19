@@ -17,6 +17,7 @@ import postgres from "postgres";
 import type { ArtifactKind } from "@/components/artifact";
 import type { VisibilityType } from "@/components/visibility-selector";
 import { ChatSDKError } from "../errors";
+import { encrypt, decrypt } from "../crypto";
 import {
   type Chat,
   chat,
@@ -28,6 +29,7 @@ import {
   suggestion,
   type User,
   user,
+  userApiKey,
   vote,
 } from "./schema";
 import { generateHashedPassword } from "./utils";
@@ -605,7 +607,7 @@ export async function createUserByAdmin({
 }: {
   email: string;
   password: string;
-  role: string;
+  role: "regular" | "admin";
 }) {
   const hashedPassword = generateHashedPassword(password);
 
@@ -625,7 +627,7 @@ export async function updateUserRole({
   role,
 }: {
   id: string;
-  role: string;
+  role: "regular" | "admin";
 }) {
   try {
     const [updated] = await db
@@ -657,6 +659,7 @@ export async function deleteUserById({ id }: { id: string }) {
       await db.delete(chat).where(eq(chat.userId, id));
     }
 
+    await db.delete(userApiKey).where(eq(userApiKey.userId, id));
     await db.delete(suggestion).where(eq(suggestion.userId, id));
     await db.delete(document).where(eq(document.userId, id));
 
@@ -667,5 +670,106 @@ export async function deleteUserById({ id }: { id: string }) {
     return deleted;
   } catch (_error) {
     throw new ChatSDKError("bad_request:database", "Failed to delete user");
+  }
+}
+
+export async function getUserApiKeys({ userId }: { userId: string }) {
+  try {
+    const keys = await db
+      .select({
+        provider: userApiKey.provider,
+        encryptedKey: userApiKey.encryptedKey,
+      })
+      .from(userApiKey)
+      .where(eq(userApiKey.userId, userId));
+
+    const result: Record<string, string> = {};
+    for (const row of keys) {
+      result[row.provider] = decrypt(row.encryptedKey);
+    }
+    return result;
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to get user API keys",
+    );
+  }
+}
+
+export async function getUserApiKeyProviders({ userId }: { userId: string }) {
+  try {
+    const keys = await db
+      .select({
+        provider: userApiKey.provider,
+        encryptedKey: userApiKey.encryptedKey,
+      })
+      .from(userApiKey)
+      .where(eq(userApiKey.userId, userId));
+
+    return keys.map((k) => {
+      const decrypted = decrypt(k.encryptedKey);
+      const masked = `${decrypted.slice(0, 7)}...${decrypted.slice(-4)}`;
+      return { provider: k.provider, maskedKey: masked };
+    });
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to get user API key providers",
+    );
+  }
+}
+
+export async function upsertUserApiKey({
+  userId,
+  provider,
+  apiKey,
+}: {
+  userId: string;
+  provider: "openai" | "anthropic";
+  apiKey: string;
+}) {
+  const encrypted = encrypt(apiKey);
+  const now = new Date();
+
+  try {
+    return await db
+      .insert(userApiKey)
+      .values({
+        userId,
+        provider,
+        encryptedKey: encrypted,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [userApiKey.userId, userApiKey.provider],
+        set: { encryptedKey: encrypted, updatedAt: now },
+      });
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to upsert user API key",
+    );
+  }
+}
+
+export async function deleteUserApiKey({
+  userId,
+  provider,
+}: {
+  userId: string;
+  provider: "openai" | "anthropic";
+}) {
+  try {
+    return await db
+      .delete(userApiKey)
+      .where(
+        and(eq(userApiKey.userId, userId), eq(userApiKey.provider, provider)),
+      );
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to delete user API key",
+    );
   }
 }

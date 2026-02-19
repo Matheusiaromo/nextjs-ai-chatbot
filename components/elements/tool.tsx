@@ -6,6 +6,7 @@ import {
   ChevronDownIcon,
   CircleIcon,
   ClockIcon,
+  DatabaseIcon,
   WrenchIcon,
   XCircleIcon,
 } from "lucide-react";
@@ -65,29 +66,46 @@ const getStatusBadge = (status: ToolUIPart["state"]) => {
   );
 };
 
+const toolDisplayNames: Record<string, string> = {
+  "tool-queryMongo": "MongoDB Query",
+  "tool-getWeather": "Weather",
+  "tool-createDocument": "Create Document",
+  "tool-updateDocument": "Update Document",
+  "tool-requestSuggestions": "Request Suggestions",
+};
+
+const toolIcons: Record<string, typeof WrenchIcon> = {
+  "tool-queryMongo": DatabaseIcon,
+};
+
 export const ToolHeader = ({
   className,
   type,
   state,
   ...props
-}: ToolHeaderProps) => (
-  <CollapsibleTrigger
-    className={cn(
-      "flex w-full min-w-0 items-center justify-between gap-2 p-3",
-      className
-    )}
-    {...props}
-  >
-    <div className="flex min-w-0 flex-1 items-center gap-2">
-      <WrenchIcon className="size-4 shrink-0 text-muted-foreground" />
-      <span className="truncate font-medium text-sm">{type}</span>
-    </div>
-    <div className="flex shrink-0 items-center gap-2">
-      {getStatusBadge(state)}
-      <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-    </div>
-  </CollapsibleTrigger>
-);
+}: ToolHeaderProps) => {
+  const Icon = toolIcons[type] ?? WrenchIcon;
+  const displayName = toolDisplayNames[type] ?? type;
+
+  return (
+    <CollapsibleTrigger
+      className={cn(
+        "flex w-full min-w-0 items-center justify-between gap-2 p-3",
+        className
+      )}
+      {...props}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <Icon className="size-4 shrink-0 text-muted-foreground" />
+        <span className="truncate font-medium text-sm">{displayName}</span>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {getStatusBadge(state)}
+        <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+      </div>
+    </CollapsibleTrigger>
+  );
+};
 
 export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
 

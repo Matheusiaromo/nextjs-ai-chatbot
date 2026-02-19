@@ -5,16 +5,18 @@ import { getDocumentById, saveSuggestions } from "@/lib/db/queries";
 import type { Suggestion } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { generateUUID } from "@/lib/utils";
-import { getArtifactModel } from "../providers";
+import { getArtifactModel, type UserApiKeys } from "../providers";
 
 type RequestSuggestionsProps = {
   session: Session;
   dataStream: UIMessageStreamWriter<ChatMessage>;
+  userApiKeys: UserApiKeys;
 };
 
 export const requestSuggestions = ({
   session,
   dataStream,
+  userApiKeys,
 }: RequestSuggestionsProps) =>
   tool({
     description:
@@ -23,7 +25,7 @@ export const requestSuggestions = ({
       documentId: z
         .string()
         .describe(
-          "The UUID of an existing document artifact that was previously created with createDocument"
+          "The UUID of an existing document artifact that was previously created with createDocument",
         ),
     }),
     execute: async ({ documentId }) => {
@@ -41,7 +43,7 @@ export const requestSuggestions = ({
       >[] = [];
 
       const { partialOutputStream } = streamText({
-        model: getArtifactModel(),
+        model: getArtifactModel(userApiKeys),
         system:
           "You are a help writing assistant. Given a piece of writing, please offer suggestions to improve the piece of writing and describe the change. It is very important for the edits to contain full sentences instead of just words. Max 5 suggestions.",
         prompt: document.content,

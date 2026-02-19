@@ -19,12 +19,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { AdminUsersDialog } from "./admin-users-dialog";
+import { ApiKeysDialog } from "./api-keys-dialog";
 import { LoaderIcon } from "./icons";
 
 export function SidebarUserNav({ user }: { user: User }) {
   const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
   const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [showApiKeysDialog, setShowApiKeysDialog] = useState(false);
 
   const isAdmin = data?.user?.type === "admin";
 
@@ -70,6 +72,13 @@ export function SidebarUserNav({ user }: { user: User }) {
               data-testid="user-nav-menu"
               side="top"
             >
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onSelect={() => setShowApiKeysDialog(true)}
+              >
+                Configurar API Keys
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {isAdmin && (
                 <>
                   <DropdownMenuItem
@@ -110,6 +119,11 @@ export function SidebarUserNav({ user }: { user: User }) {
       <AdminUsersDialog
         onOpenChange={setShowAdminDialog}
         open={showAdminDialog}
+      />
+
+      <ApiKeysDialog
+        onOpenChange={setShowApiKeysDialog}
+        open={showApiKeysDialog}
       />
     </>
   );
